@@ -46,12 +46,11 @@ class GameServer:
                     break
                 message = data.decode()
 
-                if message == "GAME_OVER":
-                    print(f"Game Over signal received from Player {player_id}.")
-                    client_socket.send(b"Thank you for playing!")  # Відправка відповіді
-                    break  # Вихід з циклу для завершення гри
+                if message == "PLAYER_WON":
+                    print("Player has won")
+                    self.choose_winner(client_socket)
+                    break
                 elif message.isdigit():
-                    # Оновлюємо рахунок гравця на сервері
                     self.clients[client_socket]['score'] = int(message)
                     self.broadcast_scores(client_socket)
                 elif message == "PLAYER1_READY":
@@ -65,10 +64,14 @@ class GameServer:
                 print(f"Error with Player {player_id}: {e}")
                 break
 
-        client_socket.close()
-        del self.clients[client_socket]  # Видаляємо клієнта зі списку
-        print(f"Connection closed for Player {player_id}")
-
+        # client_socket.close()
+        # del self.clients[client_socket]  # Видаляємо клієнта зі списку
+        # print(f"Connection closed for Player {player_id}")
+    def choose_winner(self, sender_socket):
+        for client_socket in self.clients:
+            if client_socket != sender_socket:
+                message = "PLAYER_WON"
+                client_socket.send(message.encode())
     def broadcast_scores(self, sender_socket):
         sender_id = self.clients[sender_socket]['id']
         sender_score = self.clients[sender_socket]['score']
