@@ -27,13 +27,16 @@ class GameServer:
             threading.Thread(target=self.handle_client, args=(client_socket,)).start()
             threading.Thread(target=self.start_game).start()
     def start_game(self):
-        a = True
-        while a:
+        while True:
             if self.PLAYER1 and self.PLAYER2:
                 print("Starting game...")
-                a = False
                 for client_socket in self.clients:
                     client_socket.send("StartGame".encode())
+                    self.PLAYER1 = False
+                    self.PLAYER2 = False
+
+
+
 
     def handle_client(self, client_socket):
         player_id = self.clients[client_socket]['id']
@@ -49,7 +52,6 @@ class GameServer:
                 if message == "PLAYER_WON":
                     print("Player has won")
                     self.choose_winner(client_socket)
-                    break
                 elif message.isdigit():
                     self.clients[client_socket]['score'] = int(message)
                     self.broadcast_scores(client_socket)

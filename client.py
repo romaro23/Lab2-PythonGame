@@ -22,9 +22,7 @@ class GameClient:
         self.time_left = 0
         self.other_player_score = 0
         self.is_running = False
-        #self.receive_thread = threading.Thread(target=self.receive_scores, daemon=True)
         self.check_thread = threading.Thread(target=self.check, daemon=True)
-        # self.receive_thread.start()
         self.check_thread.start()
         self.setup_gui()
 
@@ -44,6 +42,8 @@ class GameClient:
         self.spinbox.pack()
         self.start_button = tk.Button(self.root, text="Start Game", command=self.send_ready)
         self.start_button.pack()
+        self.restart_button = tk.Button(self.root, text="Restart", command=self.restart)
+        self.restart_button.pack()
         self.other_player_score_label.pack()
         self.score_label.pack()
         self.canvas.bind('<Motion>', self.check_mouse_position)
@@ -56,8 +56,8 @@ class GameClient:
         self.time_left = int(int(self.spinbox.get()) * 0.6)
         self.generate_circles()
         self.start_timer()
-        self.spinbox.pack_forget()
-        self.start_button.pack_forget()
+        self.spinbox.config(state="disabled")
+        self.start_button.config(state="disabled")
 
     def generate_circles(self):
         n = int(self.spinbox.get())
@@ -65,7 +65,9 @@ class GameClient:
             x, y = randint(50, 750), randint(50, 550)
             circle = self.canvas.create_oval(x - 20, y - 20, x + 20, y + 20, fill='blue')
             self.active_circles.append(circle)
-
+    def clear_circles(self):
+        for _ in range(len(self.active_circles)):
+            self.canvas.delete(self.active_circles.pop())
     def check_mouse_position(self, event):
         if not self.is_running:
             return
@@ -81,7 +83,7 @@ class GameClient:
                         print("You've won")
                         self.client_socket.send(b"PLAYER_WON")
                         self.end_game()
-                        messagebox.showinfo("", "You have won")
+                        #messagebox.showinfo("", "You have won")
 
     def send_score(self):
         score_message = self.score.__str__()
@@ -102,7 +104,7 @@ class GameClient:
                 elif message == "PLAYER_WON":
                     print("You've lost")
                     self.end_game()
-                    messagebox.showinfo("", "You have lost")
+                    #messagebox.showinfo("", "You have lost")
                 elif message.startswith("PLAYER_ID:"):
                     self.player_id = int(message.split(":")[1])
                     print(f"Assigned Player ID: {self.player_id}")
@@ -153,7 +155,11 @@ class GameClient:
         #     self.client_socket.send(b"GAME_OVER")
         # if self.client_socket:
         #     self.client_socket.close()
-
-
+    def restart(self):
+        self.spinbox.config(state="normal")
+        self.start_button.config(state="normal")
+        self.clear_circles()
+        self.score = 0
+        self.other_player_score = 0
 if __name__ == "__main__":
     client = GameClient()
