@@ -1,7 +1,5 @@
 import socket
 import threading
-from traceback import print_tb
-
 
 class GameServer:
     def __init__(self):
@@ -115,7 +113,6 @@ class GameServer:
             winner_id = 2
         else:
             winner_id = None
-        print("Some")
         if winner_id is not None:
             for client_socket, client_info in self.clients.items():
                 if client_info['id'] == winner_id:

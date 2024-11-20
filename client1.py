@@ -7,6 +7,7 @@ from random import randint
 import threading
 import time
 
+
 class GameClient:
     def __init__(self):
         self.timer_event = None
@@ -83,8 +84,7 @@ class GameClient:
     def send_summary(self):
         for s in self.tournament_score:
             self.summary += s
-        message = f"Summary of PLAYER{self.player_id}: " +  self.summary.__str__()
-        print(message)
+        message = f"Summary of PLAYER{self.player_id}: " + self.summary.__str__()
         self.client_socket.send(message.encode())
 
     def send_circles(self):
@@ -147,15 +147,6 @@ class GameClient:
                     print(f"Assigned Player ID: {self.player_id}")
                 elif message == "Other player ready":
                     self.is_other_ready = True
-                elif message == "You've won":
-                    messagebox.showinfo("", "You have won the tournament")
-                    break
-                elif message == "You've lost":
-                    messagebox.showinfo("", "You have lost the tournament")
-                    break
-                elif message == "Draw":
-                    messagebox.showinfo("", "It is draw. There is no winner")
-                    break
                 elif message.startswith("Player "):
                     player_id, score = message.split(" ")[1], message.split(": ")[1]
                     if int(player_id) != self.player_id:
@@ -168,6 +159,20 @@ class GameClient:
                     self.spinbox.delete(0, "end")
                     self.spinbox.insert(0, circles)
                     self.spinbox.config(state="disabled")
+                elif self.is_tournament:
+                    if message == "You've won":
+                        messagebox.showinfo("", "You have won the tournament")
+                        self.is_tournament = False
+                        break
+                    if message == "You've lost":
+                        messagebox.showinfo("", "You have lost the tournament")
+                        self.is_tournament = False
+                        break
+                    if message == "Draw":
+                        messagebox.showinfo("", "It is draw. There is no winner")
+                        self.is_tournament = False
+                        break
+
 
             except Exception as e:
                 print(f"Помилка: {e}")
@@ -197,17 +202,18 @@ class GameClient:
         timer_label.pack(pady=5)
 
         def update_timer(seconds_left):
-            if seconds_left > 0:
-                timer_label.config(text=f"Time to game: {seconds_left}")
-                table_window.after(1000, update_timer, seconds_left - 1)
-            else:
-                if self.tour_number != 3:
-                    self.start_game()
-                    table_window.destroy()
+            if self.is_tournament:
+                if seconds_left > 0:
+                    timer_label.config(text=f"Time to game: {seconds_left}")
+                    table_window.after(1000, update_timer, seconds_left - 1)
                 else:
-                    timer_label.pack_forget()
+                    if self.tour_number != 3:
+                        self.start_game()
+                        table_window.destroy()
+            else:
+                timer_label.pack_forget()
 
-        update_timer(2)
+        update_timer(5)
 
     def start_timer(self):
         if self.time_left > 0:
@@ -224,6 +230,9 @@ class GameClient:
 
     def start_tournament(self):
         self.send_ready_tour()
+        self.spinbox.config(state="disabled")
+        self.start_button.config(state="disabled")
+        self.tournament_button.config(state="disabled")
 
     def start_game(self):
         self.is_running = True
@@ -232,6 +241,7 @@ class GameClient:
         self.start_timer()
         self.spinbox.config(state="disabled")
         self.start_button.config(state="disabled")
+        self.tournament_button.config(state="disabled")
 
     def wait_for_other_player_ready(self):
         if self.is_other_ready:
@@ -253,10 +263,11 @@ class GameClient:
     def end_game(self):
         self.is_running = False
         self.stop_timer()
-        if self.is_tournament and self.tour_number != 2:
+        if self.is_tournament and self.tour_number < 2:
             self.send_ready_round()
             self.wait_for_other_player_ready()
         else:
+            self.handle_tournament_round()
             self.send_summary()
             self.summary = 0
 
@@ -266,10 +277,10 @@ class GameClient:
         #     self.client_socket.close()
 
     def restart(self):
-        self.end_game()
         if self.player_id == 1:
             self.spinbox.config(state="normal")
         self.start_button.config(state="normal")
+        self.tournament_button.config(state="normal")
         self.clear_circles()
         self.score = 0
         self.other_player_score = 0
@@ -278,7 +289,9 @@ class GameClient:
         self.tournament_score.clear()
         self.tournament_other_player_score.clear()
         self.is_other_ready = False
-        self.is_tournament = False
+        self.check_thread = threading.Thread(target=self.check, daemon=True)
+        self.check_thread.start()
+
 
 if __name__ == "__main__":
     client = GameClient()
