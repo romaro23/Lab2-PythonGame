@@ -82,8 +82,6 @@ class GameClient:
         self.client_socket.send(score_message.encode())
 
     def send_summary(self):
-        for s in self.tournament_score:
-            self.summary += s
         message = f"Summary of PLAYER{self.player_id}: " + self.summary.__str__()
         self.client_socket.send(message.encode())
 
@@ -133,33 +131,43 @@ class GameClient:
                 if message == "StartGame":
                     if not self.is_running:
                         self.start_game()
-                elif message == "StartTournament":
+                if message == "StartTournament":
                     if not self.is_tournament:
                         self.is_tournament = True
                         self.show_table_messagebox()
-                elif message == "PLAYER_WON":
-                    if not self.is_tournament:
+                if message == "PLAYER_WON" or message == "You've lost":
+                    if not self.is_tournament and self.is_running:
                         print("You've lost")
-                        self.end_game()
+                        self.stop_timer()
+                        self.is_running = False
                         messagebox.showinfo("", "You have lost")
-                elif message.startswith("PLAYER_ID:"):
+                        break
+                if not self.is_tournament and message == "You've won" and self.is_running:
+                    messagebox.showinfo("", "You have won")
+                    self.is_running = False
+                    break
+                if not self.is_tournament and message == "Draw" and self.is_running:
+                    messagebox.showinfo("", "It is draw. There is no winner")
+                    self.is_running = False
+                    break
+                if message.startswith("PLAYER_ID:"):
                     self.player_id = int(message.split(":")[1])
                     print(f"Assigned Player ID: {self.player_id}")
-                elif message == "Other player ready":
+                if message == "Other player ready":
                     self.is_other_ready = True
-                elif message.startswith("Player "):
+                if message.startswith("Player "):
                     player_id, score = message.split(" ")[1], message.split(": ")[1]
                     if int(player_id) != self.player_id:
                         self.other_player_score = int(score)
                         self.other_player_score_label.config(
                             text=f"Other player's score: {self.other_player_score}")
-                elif message.startswith("Circles"):
+                if message.startswith("Circles"):
                     circles = message.split(":")[1]
                     self.spinbox.config(state="normal")
                     self.spinbox.delete(0, "end")
                     self.spinbox.insert(0, circles)
                     self.spinbox.config(state="disabled")
-                elif self.is_tournament:
+                if self.is_tournament:
                     if message == "You've won":
                         messagebox.showinfo("", "You have won the tournament")
                         self.is_tournament = False
@@ -221,7 +229,13 @@ class GameClient:
             self.time_left -= 1
             self.timer_event = self.root.after(1000, self.start_timer)
         else:
-            self.end_game()
+            if not self.is_tournament:
+                self.stop_timer()
+                self.summary = self.score
+                self.send_summary()
+                self.summary = 0
+            else:
+                self.end_game()
 
     def stop_timer(self):
         if hasattr(self, 'timer_event'):
@@ -261,16 +275,17 @@ class GameClient:
             self.is_other_ready = False
 
     def end_game(self):
-        self.is_running = False
         self.stop_timer()
         if self.is_tournament and self.tour_number < 2:
             self.send_ready_round()
             self.wait_for_other_player_ready()
         else:
             self.handle_tournament_round()
+            for s in self.tournament_score:
+                self.summary += s
             self.send_summary()
             self.summary = 0
-
+        self.is_running = False
         # if self.client_socket:
         #     self.client_socket.send(b"GAME_OVER")
         # if self.client_socket:

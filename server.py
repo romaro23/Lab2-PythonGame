@@ -22,6 +22,8 @@ class GameServer:
         self.SUM2 = 0
         print(f"Server started on {host}:{port}")
         self.clients = {}
+        self.total_data_received = 0
+        self.total_data_sent = 0
 
         while True:
             client_socket, addr = self.server_socket.accept()
@@ -38,6 +40,7 @@ class GameServer:
             if self.PLAYER1 and self.PLAYER2:
                 for client_socket in self.clients:
                     client_socket.send("StartGame".encode())
+                    self.total_data_sent += len("StartGame")
                     self.PLAYER1 = False
                     self.PLAYER2 = False
 
@@ -53,6 +56,7 @@ class GameServer:
             if self.PLAYER1_TOUR and self.PLAYER2_TOUR:
                 for client_socket in self.clients:
                     client_socket.send("StartTournament".encode())
+                    self.total_data_sent += len("StartTournament")
                     self.PLAYER1_TOUR = False
                     self.PLAYER2_TOUR = False
 
@@ -62,6 +66,7 @@ class GameServer:
         while True:
             try:
                 data = client_socket.recv(1024)
+                self.total_data_received += len(data)
                 if not data:
                     break
                 message = data.decode()
@@ -94,16 +99,17 @@ class GameServer:
 
             except Exception as e:
                 print(f"Error with Player {player_id}: {e}")
+                client_socket.close()
+                del self.clients[client_socket]
+                print(f"Connection closed for Player {player_id}")
+                print(f"Total: data_sent - {self.total_data_sent}, data_recvd - {self.total_data_received}")
                 break
-
-        # client_socket.close()
-        # del self.clients[client_socket]  # Видаляємо клієнта зі списку
-        # print(f"Connection closed for Player {player_id}")
 
     def choose_winner(self, sender_socket):
         for client_socket in self.clients:
             if client_socket != sender_socket:
                 message = "PLAYER_WON"
+                self.total_data_sent += len(message)
                 client_socket.send(message.encode())
 
     def choose_tournament_winner(self):
@@ -117,23 +123,29 @@ class GameServer:
             for client_socket, client_info in self.clients.items():
                 if client_info['id'] == winner_id:
                     message = "You've won"
+                    self.total_data_sent += len(message)
                     client_socket.send(message.encode())
                 else:
                     message = "You've lost"
+                    self.total_data_sent += len(message)
                     client_socket.send(message.encode())
         else:
             for client_socket in self.clients:
+                self.total_data_sent += len("Draw")
                 client_socket.send("Draw".encode())
+
     def other_ready(self, sender_socket):
         for client_socket in self.clients:
             if client_socket != sender_socket:
                 message = "Other player ready"
+                self.total_data_sent += len(message)
                 client_socket.send(message.encode())
 
     def send_circles(self, sender_socket, circles):
         for client_socket in self.clients:
             if client_socket != sender_socket:
                 message = f"Circles: {circles}"
+                self.total_data_sent += len(message)
                 client_socket.send(message.encode())
 
     def broadcast_scores(self, sender_socket):
@@ -142,6 +154,7 @@ class GameServer:
         for client_socket in self.clients:
             if client_socket != sender_socket:
                 message = f"Player {sender_id} score: {sender_score}"
+                self.total_data_sent += len(message)
                 client_socket.send(message.encode())
 
 
