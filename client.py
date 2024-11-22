@@ -115,11 +115,14 @@ class GameClient:
                     self.score_label.config(text=f"Your score: {self.score}")
                     self.send_score()
                     if self.score == len(self.active_circles):
-                        self.end_game()
                         if not self.is_tournament:
+                            self.stop_timer()
                             print("You've won")
                             self.client_socket.send(b"PLAYER_WON")
                             messagebox.showinfo("", "You have won")
+                            self.is_running = False
+                        else:
+                            self.end_game()
 
     def check(self):
         while True:
